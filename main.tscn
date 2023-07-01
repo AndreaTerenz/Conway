@@ -1,9 +1,127 @@
-[gd_scene format=3 uid="uid://v270s12kelwl"]
+[gd_scene load_steps=5 format=3 uid="uid://v270s12kelwl"]
 
-[node name="Main" type="Control"]
-layout_mode = 3
+[sub_resource type="GDScript" id="GDScript_gvirx"]
+script/source = "extends ColorRect
+
+@export_range(4., 100.) var nrows := 20
+
+var grid : Array[bool] = []
+		
+func _ready():
+	var scrn_size := (size)
+	var ratio := scrn_size.x / scrn_size.y
+	var ncols := floorf(nrows * ratio)
+	
+	var grid_size := Vector2(ncols, nrows)
+	var cell_side := scrn_size / grid_size
+	
+	grid.resize(nrows * ncols)
+	grid.fill(false)
+
+func _draw():
+	var scrn_size := (size)
+	var ratio := scrn_size.x / scrn_size.y
+	var ncols := floorf(nrows * ratio)
+	
+	var grid_size := Vector2(ncols, nrows)
+	var cell_side := scrn_size / grid_size
+	
+	for cols in grid_size.x:
+		for rows in grid_size.y:
+			var tl_corner := cell_side * Vector2(cols, rows)
+			var r := Rect2(tl_corner, Vector2.ONE * cell_side)
+			
+			draw_rect(r, Color.WHITE, false, 1.0)
+			
+func gridpos_to_idx(r: int, c: int):
+	pass
+"
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q4u1i"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.215686, 0.215686, 0.215686, 1)
+
+[sub_resource type="GDScript" id="GDScript_ywjmw"]
+script/source = "extends PanelContainer
+
+func _ready():
+	modulate.a = .5 if not contains_mouse() else 1.
+
+func _on_mouse_entered():
+	modulate.a = 1.
+
+func _on_mouse_exited():
+	if not contains_mouse():
+		modulate.a = .5
+
+func contains_mouse():
+	var m_pos := get_local_mouse_position()
+	var r := get_rect()
+	
+	return (r.has_point(m_pos))
+"
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_bmr2v"]
+
+[node name="Main" type="ColorRect"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+size_flags_vertical = 3
+color = Color(0, 0, 0, 1)
+script = SubResource("GDScript_gvirx")
+
+[node name="PanelContainer" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 51.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_q4u1i")
+script = SubResource("GDScript_ywjmw")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PanelContainer" type="PanelContainer" parent="PanelContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_bmr2v")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/VBoxContainer/PanelContainer"]
+layout_mode = 2
+
+[node name="RulesLine" type="LineEdit" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StartBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "Start"
+
+[node name="StopBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "Stop"
+
+[node name="StepBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "Step"
+
+[node name="ResetBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+text = "Reset"
+
+[node name="StepTimer" type="Timer" parent="."]
+
+[connection signal="mouse_entered" from="PanelContainer" to="PanelContainer" method="_on_mouse_entered"]
+[connection signal="mouse_exited" from="PanelContainer" to="PanelContainer" method="_on_mouse_exited"]
