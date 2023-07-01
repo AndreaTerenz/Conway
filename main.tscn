@@ -5,46 +5,36 @@ script/source = "extends ColorRect
 
 @export_range(4., 100.) var nrows := 20
 
-var ncols := -1
-var grid_size := Vector2i.ZERO
 var cell_size := Vector2.ZERO
-var grid : Array[bool] = []
+var conway : Conway
 
 func _ready():
-	var scrn_size := (size)
-	var ratio := scrn_size.x / scrn_size.y
-	ncols = floor(nrows * ratio)
-	
-	grid_size = Vector2i(ncols, nrows)
-	cell_size = scrn_size / Vector2(grid_size)
-	
-	grid.resize(nrows * ncols)
-	grid.fill(false)
-	
 	seed(69420)
 	
-	for i in len(grid):
-		grid[i] = (randf() > 0.5)
+	var scrn_size := (size)
+	var ratio := scrn_size.x / scrn_size.y
+	var ncols := floori(nrows * ratio)
+	var grid_size := Vector2i(ncols, nrows)
+	
+	conway = Conway.new(grid_size)
+	
+	cell_size = scrn_size / Vector2(grid_size)
+	
+	print(\"Started\")
 
 func _draw():
-	for col in grid_size.x:
-		for row in grid_size.y:
+	for col in conway.ncols:
+		for row in conway.nrows:
 			var tl_corner := cell_size * Vector2(col, row)
 			var r := Rect2(tl_corner, cell_size)
-			var cell_idx := gridpos_to_idx(row, col)
-			var cell_value : bool = grid[cell_idx]
+			var cell_value : bool = conway.get_cell_at(row, col)
 			var cell_color := Color.WHITE if cell_value else Color.BLACK
 			
 			draw_rect(r, cell_color)
-			
-func gridpos_to_idx(r: int, c: int) -> int:
-	return r * ncols + c
-	
-func idx_to_gridpos(idx: int) -> Vector2i:
-	var r : int = idx / ncols
-	var c := idx % ncols
-	
-	return Vector2i(r,c)
+
+func _on_step_timer_timeout():
+	conway.step()
+	queue_redraw()
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q4u1i"]
@@ -83,9 +73,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
-color = Color(0, 0, 0, 1)
 script = SubResource("GDScript_gvirx")
-nrows = 40
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -133,6 +121,9 @@ layout_mode = 2
 text = "Reset"
 
 [node name="StepTimer" type="Timer" parent="."]
+wait_time = 0.2
+autostart = true
 
 [connection signal="mouse_entered" from="PanelContainer" to="PanelContainer" method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="PanelContainer" to="PanelContainer" method="_on_mouse_exited"]
+[connection signal="timeout" from="StepTimer" to="." method="_on_step_timer_timeout"]
