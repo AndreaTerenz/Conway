@@ -5,36 +5,46 @@ script/source = "extends ColorRect
 
 @export_range(4., 100.) var nrows := 20
 
+var ncols := -1
+var grid_size := Vector2i.ZERO
+var cell_size := Vector2.ZERO
 var grid : Array[bool] = []
-		
+
 func _ready():
 	var scrn_size := (size)
 	var ratio := scrn_size.x / scrn_size.y
-	var ncols := floorf(nrows * ratio)
+	ncols = floor(nrows * ratio)
 	
-	var grid_size := Vector2(ncols, nrows)
-	var cell_side := scrn_size / grid_size
+	grid_size = Vector2i(ncols, nrows)
+	cell_size = scrn_size / Vector2(grid_size)
 	
 	grid.resize(nrows * ncols)
 	grid.fill(false)
+	
+	seed(69420)
+	
+	for i in len(grid):
+		grid[i] = (randf() > 0.5)
 
 func _draw():
-	var scrn_size := (size)
-	var ratio := scrn_size.x / scrn_size.y
-	var ncols := floorf(nrows * ratio)
-	
-	var grid_size := Vector2(ncols, nrows)
-	var cell_side := scrn_size / grid_size
-	
-	for cols in grid_size.x:
-		for rows in grid_size.y:
-			var tl_corner := cell_side * Vector2(cols, rows)
-			var r := Rect2(tl_corner, Vector2.ONE * cell_side)
+	for col in grid_size.x:
+		for row in grid_size.y:
+			var tl_corner := cell_size * Vector2(col, row)
+			var r := Rect2(tl_corner, cell_size)
+			var cell_idx := gridpos_to_idx(row, col)
+			var cell_value : bool = grid[cell_idx]
+			var cell_color := Color.WHITE if cell_value else Color.BLACK
 			
-			draw_rect(r, Color.WHITE, false, 1.0)
+			draw_rect(r, cell_color)
 			
-func gridpos_to_idx(r: int, c: int):
-	pass
+func gridpos_to_idx(r: int, c: int) -> int:
+	return r * ncols + c
+	
+func idx_to_gridpos(idx: int) -> Vector2i:
+	var r : int = idx / ncols
+	var c := idx % ncols
+	
+	return Vector2i(r,c)
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q4u1i"]
@@ -75,6 +85,7 @@ grow_vertical = 2
 size_flags_vertical = 3
 color = Color(0, 0, 0, 1)
 script = SubResource("GDScript_gvirx")
+nrows = 40
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 layout_mode = 1
