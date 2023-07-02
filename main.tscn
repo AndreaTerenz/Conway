@@ -16,7 +16,7 @@ func _ready():
 	var ncols := floori(nrows * ratio)
 	var grid_size := Vector2i(ncols, nrows)
 	
-	conway = Conway.new(grid_size)
+	conway = Conway.new(grid_size, \"B3/S23\")
 	
 	cell_size = scrn_size / Vector2(grid_size)
 	
