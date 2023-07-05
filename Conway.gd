@@ -6,7 +6,10 @@ enum NEIGHBORHOOD_MODE {
 	MOORE
 }
 
-var grid : Array[bool] = []
+var grid : Array[bool]
+var next_grid : Array[bool]
+var grid_A : Array[bool] = []
+var grid_B : Array[bool] = []
 var grid_size := Vector2i.ZERO
 var birth_list := [3]
 var survive_list := [2,3]
@@ -22,11 +25,15 @@ var ncols : int :
 func _init(g_size: Vector2i, rule := "B3/S23"):
 	grid_size = g_size
 	
-	grid.resize(nrows * ncols)
-	grid.fill(false)
+	for g in [grid_A, grid_B]:
+		g.resize(nrows * ncols)
+		g.fill(false)
 	
-	for i in len(grid):
-		grid[i] = (randf() > 0.5)
+		for i in len(g):
+			g[i] = (randf() > 0.5)
+			
+	grid = grid_A
+	next_grid = grid_B
 		
 	parse_rulestring(rule)
 		
@@ -63,8 +70,6 @@ func parse_rulestring(rule: String):
 	print("Survival list: %s" % [survive_list])
 		
 func step():
-	var next_grid := grid.duplicate()
-	
 	var deltas : Array[Vector2i] = [
 		Vector2i.UP,
 		Vector2i.DOWN,
@@ -80,29 +85,42 @@ func step():
 			Vector2i.DOWN + Vector2i.RIGHT,
 		]
 	
-	for row in nrows:
-		for col in ncols:
-			var here := Vector2i(col, row)
-			var alive_here := get_cell_at(row, col)
+	for idx in range(len(grid)):
+		var here := idx_to_gridpos(idx)
+		var row := here.y
+		var col := here.x
+		var alive_here := get_cell_at(row, col)
+		
+		var alive := 0
+		
+		var left := len(deltas)
+		for delta in deltas:
+			var n_pos := here + delta
+			var n_val := get_cell_at(n_pos.y, n_pos.x)
+				
+			alive += int(n_val)
+			left -= 1
 			
-			var alive := 0#count_live_neighbors(row, col)
-			
-			var left := len(deltas)
-			for delta in deltas:
-				var n_pos := here + delta
-				var n_val := get_cell_at(n_pos.y, n_pos.x)
-					
-				alive += int(n_val)
-			
-			var survive := (alive_here and alive in survive_list)
-			var born := (not alive_here and alive in birth_list)
-			var next_value := survive or born
-			
-			var idx := gridpos_to_idx(row, col)
-			
-			next_grid[idx] = next_value
-			
+			if not alive_here:
+				# Too few max possible alive neighbors to activate cell
+				# (definetely underpopulated)
+				if (alive + left) < birth_list.min():
+					break
+			else:
+				# Already too many alive neighbors to survive
+				# (definetely overpopulated)
+				if alive > survive_list.max():
+					break
+		
+		var survive := (alive_here and alive in survive_list)
+		var born := (not alive_here and alive in birth_list)
+		var next_value := survive or born
+		
+		next_grid[idx] = next_value
+	
+	var tmp = grid
 	grid = next_grid
+	next_grid = tmp
 
 func check_gridpos(r: int, c: int):
 	return (r in range(0, nrows) and c in range(0, ncols))
@@ -129,5 +147,5 @@ func idx_to_gridpos(idx: int) -> Vector2i:
 	var r : int = idx / ncols
 	var c := idx % ncols
 	
-	return Vector2i(r,c)
+	return Vector2i(c,r)
 

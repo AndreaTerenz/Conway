@@ -3,13 +3,18 @@
 [sub_resource type="GDScript" id="GDScript_gvirx"]
 script/source = "extends ColorRect
 
+@export var seed := \"69420\"
 @export_range(4., 100.) var nrows := 20
+@export_range(.01, 5., .01) var step_time := 1.
+
+@onready var step_timer : Timer = %StepTimer
 
 var cell_size := Vector2.ZERO
 var conway : Conway
 
 func _ready():
-	seed(69420)
+	print(\"Random seed: %d\" % seed.hash())
+	seed(seed.hash())
 	
 	var scrn_size := (size)
 	var ratio := scrn_size.x / scrn_size.y
@@ -20,6 +25,7 @@ func _ready():
 	
 	cell_size = scrn_size / Vector2(grid_size)
 	
+	step_timer.start(step_time)
 	print(\"Started\")
 
 func _draw():
@@ -74,6 +80,8 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
 script = SubResource("GDScript_gvirx")
+nrows = 40
+step_time = 0.1
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
 layout_mode = 1
@@ -121,8 +129,7 @@ layout_mode = 2
 text = "Reset"
 
 [node name="StepTimer" type="Timer" parent="."]
-wait_time = 0.2
-autostart = true
+unique_name_in_owner = true
 
 [connection signal="mouse_entered" from="PanelContainer" to="PanelContainer" method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="PanelContainer" to="PanelContainer" method="_on_mouse_exited"]
