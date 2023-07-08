@@ -2,8 +2,8 @@ class_name Conway
 extends Object
 
 enum NEIGHBORHOOD_MODE {
-	VNEUMANN,
-	MOORE
+	VNEUMANN = 0,
+	MOORE = 1
 }
 
 var grid : Array[bool]
@@ -37,15 +37,15 @@ func _init(g_size: Vector2i, rule := "B3/S23"):
 		
 	parse_rulestring(rule)
 		
-func parse_rulestring(rule: String):
-	var regex = RegEx.new()
-	regex.compile("^B(\\d)*\\/S(\\d)*[VM]?$")
-	assert(regex.search(rule), "INVALID RULESTRING '%s'" % rule)
+func parse_rulestring(rule: String) -> bool:
+	if not Conway.is_valid_rulestring(rule):
+		return false
 	
 	print("Rule: %s" % rule)
 	
 	rule = rule.trim_prefix("B")
 	
+	var regex = RegEx.new()
 	regex.compile(".*V$")
 	if regex.search(rule):
 		neighborhood_mode = NEIGHBORHOOD_MODE.VNEUMANN
@@ -66,61 +66,73 @@ func parse_rulestring(rule: String):
 	survive_list = Array(survive_str.split()).map(func(s): return int(s))
 	
 	print("Neighborhood type: %d" % neighborhood_mode)
+	print(NEIGHBORHOOD_MODE.VNEUMANN)
 	print("Birth list: %s" % [birth_list])
 	print("Survival list: %s" % [survive_list])
+	
+	return true
 		
 func step():
-	var deltas : Array[Vector2i] = [
-		Vector2i.UP,
-		Vector2i.DOWN,
-		Vector2i.LEFT,
-		Vector2i.RIGHT
-	]
-	
-	if neighborhood_mode == NEIGHBORHOOD_MODE.MOORE:
-		deltas += [
-			Vector2i.UP + Vector2i.LEFT,
-			Vector2i.UP + Vector2i.RIGHT,
-			Vector2i.DOWN + Vector2i.LEFT,
-			Vector2i.DOWN + Vector2i.RIGHT,
-		]
-	
 	for idx in range(len(grid)):
 		var here := idx_to_gridpos(idx)
 		var row := here.y
 		var col := here.x
-		var alive_here := get_cell_at(row, col)
 		
-		var alive := 0
-		
-		var left := len(deltas)
-		for delta in deltas:
+		next_grid[idx] = get_new_cell_value(row, col)
+	
+	var tmp = grid
+	grid = next_grid
+	next_grid = tmp
+	
+func get_new_cell_value(r: int, c: int):
+	var here := Vector2i(c, r)
+	var alive_here := get_cell_at(r, c)
+	var alive_n_count := 0
+	
+	var left := -1
+	var tmp := []
+	
+	var ao
+	
+	for col_d in [-1, 0, 1]:
+		for row_d in [-1, 0, 1]:
+			if col_d == 0 and row_d == 0:
+				continue
+			
+			if neighborhood_mode == NEIGHBORHOOD_MODE.VNEUMANN:
+				if col_d * row_d != 0:
+					continue
+			
+			var delta := Vector2i(col_d, row_d)
 			var n_pos := here + delta
+			
+			if not check_gridpos(n_pos.y, n_pos.x):
+				continue
+			tmp += [delta]
+			
 			var n_val := get_cell_at(n_pos.y, n_pos.x)
 				
-			alive += int(n_val)
+			alive_n_count += int(n_val)
+			break
 			left -= 1
 			
 			if not alive_here:
 				# Too few max possible alive neighbors to activate cell
 				# (definetely underpopulated)
-				if (alive + left) < birth_list.min():
+				if (alive_n_count + left) < birth_list.min():
 					break
 			else:
 				# Already too many alive neighbors to survive
 				# (definetely overpopulated)
-				if alive > survive_list.max():
+				if alive_n_count > survive_list.max():
 					break
-		
-		var survive := (alive_here and alive in survive_list)
-		var born := (not alive_here and alive in birth_list)
-		var next_value := survive or born
-		
-		next_grid[idx] = next_value
 	
-	var tmp = grid
-	grid = next_grid
-	next_grid = tmp
+	var survive := (alive_here and alive_n_count in survive_list)
+	var born := (not alive_here and alive_n_count in birth_list)
+	
+	print(here, " ", alive_n_count, " ", tmp, " ", survive, " ", born)
+	
+	return survive or born
 
 func check_gridpos(r: int, c: int):
 	return (r in range(0, nrows) and c in range(0, ncols))
@@ -149,3 +161,12 @@ func idx_to_gridpos(idx: int) -> Vector2i:
 	
 	return Vector2i(c,r)
 
+static func is_valid_rulestring(rs: String):
+	# Shortest possible rule
+	if len(rs) < len("B/Sx"):
+		return false
+		
+	var regex = RegEx.new()
+	regex.compile("^B(\\d)*\\/S(\\d)*[VM]?$")
+	
+	return regex.search(rs)

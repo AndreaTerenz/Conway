@@ -3,32 +3,46 @@
 [sub_resource type="GDScript" id="GDScript_gvirx"]
 script/source = "extends ColorRect
 
-@export var seed := \"69420\"
+@export var random_seed := \"69420\"
 @export_range(4., 100.) var nrows := 20
 @export_range(.01, 5., .01) var step_time := 1.
 
 @onready var step_timer : Timer = %StepTimer
+@onready var rules_line = %RulesLine
+@onready var start_btn  = %StartBtn
+@onready var stop_btn   = %StopBtn
+@onready var step_btn   = %StepBtn
+@onready var reset_btn  = %ResetBtn
 
 var cell_size := Vector2.ZERO
 var conway : Conway
+var rule := \"B2/S23\"
+var running : bool :
+	set(r):
+		running = r
+		
+		stop_btn.disabled  = not running
+		step_btn.disabled  = running
+		start_btn.disabled = running
+		rules_line.editable = not running
+		
+		if running:
+			step_timer.start(step_time)
+		else:
+			step_timer.stop()
 
 func _ready():
-	print(\"Random seed: %d\" % seed.hash())
-	seed(seed.hash())
+	print(\"Random seed: %d\" % random_seed.hash())
+	seed(random_seed.hash())
 	
-	var scrn_size := (size)
-	var ratio := scrn_size.x / scrn_size.y
-	var ncols := floori(nrows * ratio)
-	var grid_size := Vector2i(ncols, nrows)
+	running = false
 	
-	conway = Conway.new(grid_size, \"B3/S23\")
-	
-	cell_size = scrn_size / Vector2(grid_size)
-	
-	step_timer.start(step_time)
-	print(\"Started\")
+	reset()
 
 func _draw():
+	if conway == null:
+		return
+		
 	for col in conway.ncols:
 		for row in conway.nrows:
 			var tl_corner := cell_size * Vector2(col, row)
@@ -37,10 +51,58 @@ func _draw():
 			var cell_color := Color.WHITE if cell_value else Color.BLACK
 			
 			draw_rect(r, cell_color)
-
-func _on_step_timer_timeout():
+			
+func _input(event):
+	if event.is_action_pressed(\"quit\"):
+		get_tree().quit()
+	
+func single_step():
 	conway.step()
 	queue_redraw()
+	
+func reset():
+	var scrn_size := (size)
+	var ratio := scrn_size.x / scrn_size.y
+	var ncols := floori(nrows * ratio)
+	var grid_size := Vector2i(ncols, nrows)
+	
+	cell_size = scrn_size / Vector2(grid_size)
+	queue_redraw()
+	
+	rule = rules_line.text
+	if not Conway.is_valid_rulestring(rule):
+		rule = \"B2/S23\"
+	
+	conway = Conway.new(grid_size, rule)
+
+func _on_step_timer_timeout():
+	single_step()
+
+func _on_start_btn_pressed():
+	running = true
+	print(\"Started\")
+
+
+func _on_stop_btn_pressed():
+	running = false
+
+
+func _on_step_btn_pressed():
+	# Safety check, should be redundant
+	if not running:
+		single_step()
+
+
+func _on_reset_btn_pressed():
+	running = false
+	reset()
+
+
+func _on_rules_line_submitted(new_text):
+	if Conway.is_valid_rulestring(new_text):
+		rule = new_text
+		conway.parse_rulestring(rule)
+	
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q4u1i"]
@@ -80,7 +142,6 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_vertical = 3
 script = SubResource("GDScript_gvirx")
-nrows = 40
 step_time = 0.1
 
 [node name="PanelContainer" type="PanelContainer" parent="."]
@@ -109,21 +170,25 @@ layout_mode = 2
 size_flags_horizontal = 3
 
 [node name="StartBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 text = "Start"
 
 [node name="StopBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 text = "Stop"
 
 [node name="StepBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 text = "Step"
 
 [node name="ResetBtn" type="Button" parent="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+unique_name_in_owner = true
 custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 text = "Reset"
@@ -133,4 +198,9 @@ unique_name_in_owner = true
 
 [connection signal="mouse_entered" from="PanelContainer" to="PanelContainer" method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="PanelContainer" to="PanelContainer" method="_on_mouse_exited"]
+[connection signal="text_submitted" from="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer/RulesLine" to="." method="_on_rules_line_submitted"]
+[connection signal="pressed" from="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer/StartBtn" to="." method="_on_start_btn_pressed"]
+[connection signal="pressed" from="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer/StopBtn" to="." method="_on_stop_btn_pressed"]
+[connection signal="pressed" from="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer/StepBtn" to="." method="_on_step_btn_pressed"]
+[connection signal="pressed" from="PanelContainer/VBoxContainer/PanelContainer/HBoxContainer/ResetBtn" to="." method="_on_reset_btn_pressed"]
 [connection signal="timeout" from="StepTimer" to="." method="_on_step_timer_timeout"]
